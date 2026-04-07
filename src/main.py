@@ -71,10 +71,7 @@ def run_dry_mode(config, state, lock):
 def run_led_mode(config, state, lock):
     """Main render loop driving the LED matrix."""
     from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-    from src.renderer import (
-        draw_session_panel, draw_weekly_panel, draw_api_panel,
-        draw_divider, draw_ticker_page, Ticker,
-    )
+    from src.renderer import DisplayCycler, draw_screen
 
     options = RGBMatrixOptions()
     options.rows = config["display"]["rows"]
@@ -84,22 +81,18 @@ def run_led_mode(config, state, lock):
     options.hardware_mapping = config["display"]["gpio_mapping"]
     options.gpio_slowdown = config["display"]["gpio_slowdown"]
     options.brightness = config["display"]["brightness"]
+    options.disable_hardware_pulsing = config["display"].get("no_hardware_pulse", False)
     options.drop_privileges = False
 
     matrix = RGBMatrix(options=options)
     canvas = matrix.CreateFrameCanvas()
 
-    fonts = {
-        "large": graphics.Font(),
-        "small": graphics.Font(),
-    }
-    fonts["large"].LoadFont("fonts/7x13.bdf")
-    fonts["small"].LoadFont("fonts/4x6.bdf")
+    font = graphics.Font()
+    font.LoadFont("fonts/5x7.bdf")
 
-    ticker = Ticker(
+    cycler = DisplayCycler(
         cycle_seconds=config["display"]["ticker_cycle_seconds"],
         fade_frames=config["display"]["ticker_fade_frames"],
-        projects_per_page=config["display"]["ticker_projects_per_page"],
     )
 
     logger.info("LED matrix initialized. Starting render loop.")
@@ -111,21 +104,9 @@ def run_led_mode(config, state, lock):
             with lock:
                 snapshot = copy.deepcopy(state)
 
-            draw_session_panel(canvas, graphics, fonts, snapshot["subscription"])
-            draw_weekly_panel(canvas, graphics, fonts, snapshot["subscription"])
-            draw_api_panel(canvas, graphics, fonts, snapshot["api"])
-            draw_divider(canvas, graphics)
-
-            projects = snapshot["api"].get("projects", [])
-            pages = layout.ticker_pages(projects, ticker.projects_per_page)
-            ticker.update(len(pages))
-
-            if pages:
-                brightness = 1.0
-                if ticker.fade_progress is not None:
-                    brightness = ticker.get_brightness(ticker.fade_progress)
-                current_projects = pages[ticker.current_page]
-                draw_ticker_page(canvas, graphics, fonts, current_projects, brightness)
+            cycler.update()
+            brightness = cycler.get_brightness()
+            draw_screen(canvas, graphics, font, cycler.current_screen, snapshot, brightness)
 
             canvas = matrix.SwapOnVSync(canvas)
 

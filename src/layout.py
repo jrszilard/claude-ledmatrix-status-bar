@@ -1,57 +1,9 @@
 import math
 
 # Display dimensions
-PANEL_WIDTH = 64
-TOTAL_WIDTH = 192  # 3 panels x 64
-TOTAL_HEIGHT = 32
-
-# Region boundaries
-DASHBOARD_BOTTOM = 22
-TICKER_TOP = 22
-TICKER_HEIGHT = TOTAL_HEIGHT - TICKER_TOP  # 10 rows
-
-# Panel X offsets
-PANEL1_X = 0
-PANEL2_X = 64
-PANEL3_X = 128
-
-# Session panel (Panel 1) layout
-SESSION_LABEL_X = 14
-SESSION_LABEL_Y = 7
-SESSION_PCT_X = 12
-SESSION_PCT_Y = 17
-SESSION_BAR_X = 4
-SESSION_BAR_Y = 18
-SESSION_BAR_WIDTH = 56
-SESSION_BAR_HEIGHT = 2
-SESSION_RESET_X = 4
-SESSION_RESET_Y = 21
-
-# Weekly panel (Panel 2) layout
-WEEKLY_LABEL_X = PANEL2_X + 14
-WEEKLY_LABEL_Y = 6
-WEEKLY_BAR_LABEL_X = PANEL2_X + 2
-WEEKLY_BAR_X = PANEL2_X + 16
-WEEKLY_BAR_WIDTH = 32
-WEEKLY_BAR_HEIGHT = 2
-WEEKLY_PCT_X = PANEL2_X + 50
-WEEKLY_ROW_ALL_Y = 10
-WEEKLY_ROW_SNT_Y = 14
-WEEKLY_ROW_EXT_Y = 18
-
-# API panel (Panel 3) layout
-API_LABEL_X = PANEL3_X + 12
-API_LABEL_Y = 7
-API_SPEND_X = PANEL3_X + 8
-API_SPEND_Y = 15
-API_TOKENS_X = PANEL3_X + 6
-API_TOKENS_Y = 21
-
-# Ticker layout
-TICKER_PROJECT_Y_NAME = TICKER_TOP + 4
-TICKER_PROJECT_Y_DETAIL = TICKER_TOP + 9
-TICKER_DIVIDER_Y = TICKER_TOP
-TICKER_COL_WIDTH = 96  # 192 / 2 projects
+PANEL_WIDTH = 32
+TOTAL_WIDTH = 96  # 3 panels x 32
+TOTAL_HEIGHT = 16
 
 # Colors (R, G, B)
 COLOR_SESSION = (255, 107, 107)
@@ -62,6 +14,18 @@ COLOR_API = (201, 160, 255)
 COLOR_GRAY = (128, 128, 128)
 COLOR_BAR_BG = (51, 51, 51)
 COLOR_DIVIDER = (68, 68, 68)
+
+# Text positions (5x7 font)
+CHAR_WIDTH = 5   # pixels per character
+TEXT_Y = 8       # baseline for top text row
+BAR_Y = 11       # top of progress bar
+BAR_HEIGHT = 3   # bar thickness
+BAR_X = 2        # left padding
+BAR_WIDTH = 92   # nearly full width
+
+# Ticker (bottom area when using split layout)
+TICKER_PROJECT_Y_NAME = 7
+TICKER_PROJECT_Y_DETAIL = 14
 
 
 def format_tokens(tokens: int) -> str:
@@ -80,7 +44,7 @@ def format_dollars(amount: float) -> str:
     return f"${amount:.2f}"
 
 
-def compute_bar_width(percentage: int, max_width: int) -> int:
+def compute_bar_width(percentage, max_width: int) -> int:
     """Compute pixel width of a progress bar given percentage and max width."""
     return int(max_width * percentage / 100)
 
