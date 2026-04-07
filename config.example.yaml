@@ -1,0 +1,20 @@
+display:
+  panels: 3
+  rows: 32
+  cols_per_panel: 64
+  gpio_mapping: "regular"
+  gpio_slowdown: 2
+  brightness: 60
+  ticker_projects_per_page: 2
+  ticker_cycle_seconds: 4
+  ticker_fade_frames: 15
+
+polling:
+  subscription_interval_seconds: 180
+  api_interval_seconds: 300
+
+anthropic:
+  admin_api_key: "${ANTHROPIC_ADMIN_KEY}"
+  api_projects:
+    - name: "my-project"
+      api_key_id: "apikey_01EXAMPLE"
