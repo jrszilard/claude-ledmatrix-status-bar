@@ -58,7 +58,7 @@ def parse_usage_output(raw_text: str) -> dict:
     text = strip_ansi(raw_text)
     result = dict(_DEFAULT_SUBSCRIPTION)
 
-    m = re.search(r"Current session\s+(\d+)%\s+used", text)
+    m = re.search(r"Current session.*?(\d+)%\s+used", text, re.DOTALL)
     if m:
         result["session_pct"] = int(m.group(1))
 
@@ -66,7 +66,7 @@ def parse_usage_output(raw_text: str) -> dict:
     if m:
         result["session_reset"] = m.group(1).strip()
 
-    m = re.search(r"Current week \(all models\)\s+(\d+)%\s+used", text)
+    m = re.search(r"Current week \(all models\).*?(\d+)%\s+used", text, re.DOTALL)
     if m:
         result["week_all_pct"] = int(m.group(1))
 
@@ -76,7 +76,7 @@ def parse_usage_output(raw_text: str) -> dict:
     if m:
         result["week_all_reset"] = m.group(1).strip()
 
-    m = re.search(r"Current week \(Sonnet only\)\s+(\d+)%\s+used", text)
+    m = re.search(r"Current week \(Sonnet only\).*?(\d+)%\s+used", text, re.DOTALL)
     if m:
         result["week_sonnet_pct"] = int(m.group(1))
 
@@ -112,15 +112,20 @@ def capture_usage() -> dict:
         time.sleep(8)
 
         subprocess.run(
-            ["tmux", "send-keys", "-t", session_name, "/usage", "Escape", "Enter"],
+            ["tmux", "send-keys", "-t", session_name, "/usage"],
+            check=True, timeout=5,
+        )
+        time.sleep(2)
+        subprocess.run(
+            ["tmux", "send-keys", "-t", session_name, "Enter"],
             check=True, timeout=5,
         )
 
         logger.info("Waiting for /usage to render...")
-        time.sleep(5)
+        time.sleep(8)
 
         result = subprocess.run(
-            ["tmux", "capture-pane", "-t", session_name, "-p"],
+            ["tmux", "capture-pane", "-t", session_name, "-p", "-S", "-"],
             capture_output=True, text=True, timeout=5,
         )
 
