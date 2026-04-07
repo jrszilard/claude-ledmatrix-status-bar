@@ -81,6 +81,10 @@ def run_led_mode(config, state, lock):
     options.hardware_mapping = config["display"]["gpio_mapping"]
     options.gpio_slowdown = config["display"]["gpio_slowdown"]
     options.brightness = config["display"]["brightness"]
+    options.pwm_bits = config["display"].get("pwm_bits", 11)
+    options.pwm_lsb_nanoseconds = config["display"].get("pwm_lsb_nanoseconds", 130)
+    options.scan_mode = config["display"].get("scan_mode", 0)
+    options.limit_refresh_rate_hz = config["display"].get("limit_refresh_hz", 0)
     options.disable_hardware_pulsing = config["display"].get("no_hardware_pulse", False)
     options.drop_privileges = False
 
