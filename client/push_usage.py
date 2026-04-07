@@ -109,7 +109,7 @@ def capture_usage() -> dict:
         )
 
         logger.info("Waiting for Claude Code to initialize...")
-        time.sleep(8)
+        time.sleep(12)
 
         subprocess.run(
             ["tmux", "send-keys", "-t", session_name, "/usage"],
@@ -122,7 +122,7 @@ def capture_usage() -> dict:
         )
 
         logger.info("Waiting for /usage to render...")
-        time.sleep(8)
+        time.sleep(10)
 
         result = subprocess.run(
             ["tmux", "capture-pane", "-t", session_name, "-p", "-S", "-"],
