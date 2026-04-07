@@ -4,91 +4,12 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from src.collector import (
-    parse_usage_output,
     fetch_api_usage,
     parse_usage_response,
     parse_cost_response,
     CollectorThread,
-    _DEFAULT_SUBSCRIPTION,
     _DEFAULT_API,
 )
-
-
-# --- Subscription Usage Parsing Tests ---
-
-
-# Simulated /usage TUI output after ANSI stripping
-SAMPLE_USAGE_OUTPUT = """
- Status  Config  Usage  Stats
-
- Current session                         10% used
- ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
- Resets 7pm (America/New_York)
-
- Current week (all models)               22% used
- ██████████░░░░░░░░░░░░░░░░░░░░░░░░░░
- Resets Apr 10, 10am (America/New_York)
-
- Current week (Sonnet only)              9% used
- ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
- Resets Apr 9, 3pm (America/New_York)
-
- Extra usage                             9% used
- ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
- $7.13 / $79.00 spent · Resets May 1 (America/New_York)
-
- Esc to cancel
-"""
-
-
-def test_parse_session_percentage():
-    result = parse_usage_output(SAMPLE_USAGE_OUTPUT)
-    assert result["session_pct"] == 10
-
-
-def test_parse_session_reset():
-    result = parse_usage_output(SAMPLE_USAGE_OUTPUT)
-    assert result["session_reset"] == "7pm"
-
-
-def test_parse_week_all():
-    result = parse_usage_output(SAMPLE_USAGE_OUTPUT)
-    assert result["week_all_pct"] == 22
-    assert result["week_all_reset"] == "Apr 10, 10am"
-
-
-def test_parse_week_sonnet():
-    result = parse_usage_output(SAMPLE_USAGE_OUTPUT)
-    assert result["week_sonnet_pct"] == 9
-    assert result["week_sonnet_reset"] == "Apr 9, 3pm"
-
-
-def test_parse_extra_usage():
-    result = parse_usage_output(SAMPLE_USAGE_OUTPUT)
-    assert result["extra_spent"] == 7.13
-    assert result["extra_limit"] == 79.00
-
-
-def test_parse_with_ansi_codes():
-    """Test that ANSI escape codes are stripped before parsing."""
-    ansi_output = (
-        "\x1b[1m Current session\x1b[0m"
-        "                         \x1b[33m10% used\x1b[0m\n"
-        " ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░\n"
-        " Resets 7pm (America/New_York)\n"
-    )
-    result = parse_usage_output(ansi_output)
-    assert result["session_pct"] == 10
-    assert result["session_reset"] == "7pm"
-
-
-def test_parse_empty_returns_defaults():
-    result = parse_usage_output("")
-    assert result["session_pct"] == 0
-    assert result["session_reset"] == "--"
-    assert result["week_all_pct"] == 0
-    assert result["extra_spent"] == 0.0
-    assert result["extra_limit"] == 0.0
 
 
 # --- API Usage Tests ---
@@ -204,59 +125,39 @@ def test_fetch_api_usage_handles_error(sample_config):
 
 
 def test_collector_thread_updates_state():
-    state = {}
+    state = {"subscription": {}, "api": {}}
     lock = threading.Lock()
 
-    sub_data = {
-        "session_pct": 15,
-        "session_reset": "8pm",
-        "week_all_pct": 30,
-        "week_all_reset": "Apr 11",
-        "week_sonnet_pct": 12,
-        "week_sonnet_reset": "Apr 10",
-        "extra_spent": 10.0,
-        "extra_limit": 79.0,
-    }
     api_data = {
         "total_spend": 5.0,
         "total_tokens": 500_000,
         "projects": [{"name": "test", "spend": 5.0, "tokens": 500_000}],
     }
 
-    with patch("src.collector.fetch_subscription_usage", return_value=sub_data), \
-         patch("src.collector.fetch_api_usage", return_value=api_data):
+    with patch("src.collector.fetch_api_usage", return_value=api_data):
         config = {
-            "polling": {
-                "subscription_interval_seconds": 180,
-                "api_interval_seconds": 300,
-            },
+            "polling": {"api_interval_seconds": 300},
             "anthropic": {"admin_api_key": "test", "api_projects": []},
         }
         thread = CollectorThread(config, state, lock)
         thread.daemon = True
         thread.start()
-        # Wait for first collection cycle
         time.sleep(1)
         thread.stop()
         thread.join(timeout=5)
 
     with lock:
-        assert state["subscription"]["session_pct"] == 15
         assert state["api"]["total_spend"] == 5.0
         assert "last_updated" in state
 
 
 def test_collector_thread_stops_cleanly():
-    state = {}
+    state = {"subscription": {}, "api": {}}
     lock = threading.Lock()
 
-    with patch("src.collector.fetch_subscription_usage", return_value=dict(_DEFAULT_SUBSCRIPTION)), \
-         patch("src.collector.fetch_api_usage", return_value=dict(_DEFAULT_API)):
+    with patch("src.collector.fetch_api_usage", return_value=dict(_DEFAULT_API)):
         config = {
-            "polling": {
-                "subscription_interval_seconds": 180,
-                "api_interval_seconds": 300,
-            },
+            "polling": {"api_interval_seconds": 300},
             "anthropic": {"admin_api_key": "test", "api_projects": []},
         }
         thread = CollectorThread(config, state, lock)

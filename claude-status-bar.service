@@ -1,0 +1,18 @@
+[Unit]
+Description=Claude LED Matrix Status Bar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/claude-ledmatrix-status-bar
+EnvironmentFile=/etc/claude-status-bar.env
+ExecStart=/usr/bin/python3 -m src.main -c config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

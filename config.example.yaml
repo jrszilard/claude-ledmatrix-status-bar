@@ -10,8 +10,11 @@ display:
   ticker_fade_frames: 15
 
 polling:
-  subscription_interval_seconds: 180
   api_interval_seconds: 300
+
+receiver:
+  port: 8765
+  token: "${RECEIVER_TOKEN}"
 
 anthropic:
   admin_api_key: "${ANTHROPIC_ADMIN_KEY}"

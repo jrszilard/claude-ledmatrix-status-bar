@@ -43,7 +43,7 @@ def test_load_valid_config(valid_config_file, sample_config):
     assert config["display"]["panels"] == 3
     assert config["display"]["rows"] == 32
     assert config["display"]["brightness"] == 60
-    assert config["polling"]["subscription_interval_seconds"] == 180
+    assert config["polling"]["api_interval_seconds"] == 300
     assert len(config["anthropic"]["api_projects"]) == 2
 
 

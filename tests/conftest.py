@@ -43,8 +43,11 @@ def sample_config():
             "ticker_fade_frames": 15,
         },
         "polling": {
-            "subscription_interval_seconds": 180,
             "api_interval_seconds": 300,
+        },
+        "receiver": {
+            "port": 8765,
+            "token": "test-secret-token",
         },
         "anthropic": {
             "admin_api_key": "sk-ant-admin-test-key",
