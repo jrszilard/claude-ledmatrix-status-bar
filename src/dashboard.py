@@ -135,3 +135,63 @@ def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=No
         bar_w = layout.TILE_WIDTH - 2 * layout.TILE_BAR_X
         _draw_bar(canvas, layout.TILE_BAR_X, y_offset + layout.TILE_BAR_Y,
                   bar_w, layout.TILE_BAR_H, pct, color, bg)
+
+
+def draw_accent(canvas, provider, brightness=1.0):
+    """Persistent provider identity: a 1px accent column down the left edge."""
+    color = layout.scale_color(provider.color, brightness)
+    height = layout.NUM_TILES * layout.TILE_HEIGHT
+    for y in range(height):
+        canvas.SetPixel(0, y, *color)
+
+
+def draw_hero(canvas, gfx, fonts, provider, state, brightness=1.0):
+    """Full-stack hero readout for a single-metric (balance) provider."""
+    metric = provider.page.metric
+    accent = layout.scale_color(provider.color, brightness)
+    c = gfx.Color(*accent)
+
+    # Provider name across the top (small font).
+    gfx.DrawText(canvas, fonts["small"], layout.TILE_BAR_X, layout.TILE_TEXT_Y, c,
+                 provider.label)
+
+    # Hero number (spent this period) centered in the main font.
+    value = layout.format_dollars(float(registry.resolve(metric.key, state) or 0))
+    value_x = max(0, (layout.TILE_WIDTH - len(value) * layout.CHAR_WIDTH) // 2)
+    mid_y = (layout.NUM_TILES * layout.TILE_HEIGHT) // 2 + 4
+    gfx.DrawText(canvas, fonts["main"], value_x, mid_y, c, value)
+
+    # Optional sub-line (auto-reload note), small font, dimmed.
+    sub = registry.resolve(metric.sub_key, state) if metric.sub_key else None
+    if sub:
+        sc = gfx.Color(*layout.scale_color(layout.COLOR_GRAY, brightness))
+        sub = str(sub)
+        sub_x = max(0, (layout.TILE_WIDTH - len(sub) * 4) // 2)
+        gfx.DrawText(canvas, fonts["small"], sub_x, mid_y + 9, sc, sub)
+
+
+def draw_page(canvas, gfx, fonts, provider, state, page_cycler, now=None,
+              show_countdown=True):
+    """Render a provider's page. Outer caller picks which provider."""
+    now = time.time() if now is None else now
+    draw_accent(canvas, provider)
+
+    page = provider.page
+    if isinstance(page, registry.HeroPage):
+        draw_hero(canvas, gfx, fonts, provider, state)
+        return
+
+    offsets = layout.TILE_Y_OFFSETS
+    idx = 0
+    for metric in page.fixed:
+        if idx >= len(offsets):
+            break
+        draw_tile(canvas, gfx, fonts["main"], offsets[idx], metric, state,
+                  brightness=1.0, now=now, show_countdown=show_countdown)
+        idx += 1
+
+    if page.rotating and idx < len(offsets):
+        cur = page.rotating[page_cycler.current % len(page.rotating)]
+        draw_tile(canvas, gfx, fonts["main"], offsets[idx], cur, state,
+                  brightness=page_cycler.brightness(), now=now,
+                  show_countdown=show_countdown)

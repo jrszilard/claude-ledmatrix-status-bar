@@ -150,3 +150,46 @@ def test_tile_value_no_countdown_when_disabled():
     m = registry.Metric("SES", "quota", "subscription.session_pct", layout.COLOR_SESSION,
                         reset_key="subscription.session_reset_utc")
     assert dashboard.tile_value(m, state, now=6, show_countdown=False) == "45%"
+
+
+def _claude():
+    return next(p for p in registry.PROVIDERS if p.id == "anthropic")
+
+
+def _opencode():
+    return next(p for p in registry.PROVIDERS if p.id == "opencode")
+
+
+def test_draw_accent_paints_left_column(gfx, canvas):
+    dashboard.draw_accent(canvas, _claude())
+    xs = {c.args[0] for c in canvas.SetPixel.call_args_list}
+    assert xs == {0}                          # only column 0
+    ys = {c.args[1] for c in canvas.SetPixel.call_args_list}
+    assert ys == set(range(48))               # full 3*16 height
+
+
+def test_draw_page_tiles_draws_fixed_labels(gfx, canvas):
+    cy = dashboard.Cycler(total=3)
+    dashboard.draw_page(canvas, gfx, {"main": MagicMock(), "small": MagicMock()},
+                        _claude(), STATE, cy, now=0)
+    drawn = texts(gfx)
+    assert "SES" in drawn and "WK" in drawn   # both fixed tiles
+    assert "SNT" in drawn                      # rotating tile (cycler.current == 0)
+
+
+def test_draw_page_tiles_rotating_advances(gfx, canvas):
+    cy = dashboard.Cycler(total=3)
+    cy.current = 1                             # EXT is rotating[1]
+    dashboard.draw_page(canvas, gfx, {"main": MagicMock(), "small": MagicMock()},
+                        _claude(), STATE, cy, now=0)
+    assert "EXT" in texts(gfx)
+    assert "SNT" not in texts(gfx)
+
+
+def test_draw_page_hero_draws_provider_label_and_spend(gfx, canvas):
+    cy = dashboard.Cycler(total=1)
+    dashboard.draw_page(canvas, gfx, {"main": MagicMock(), "small": MagicMock()},
+                        _opencode(), STATE, cy, now=0)
+    drawn = texts(gfx)
+    assert "OPENCODE" in drawn
+    assert "$18.40" in drawn
