@@ -92,3 +92,61 @@ def test_draw_tile_applies_vertical_offset(gfx, canvas):
     # label baseline = y_offset + TILE_TEXT_Y = 16 + 8 = 24
     label_call = next(c for c in gfx.DrawText.call_args_list if c.args[5] == "SES")
     assert label_call.args[3] == 24
+
+
+def test_cycler_single_item_never_advances():
+    cy = dashboard.Cycler(total=1, cycle_seconds=1, fade_frames=2)
+    cy.update(now=1000)
+    cy.update(now=2000)
+    assert cy.current == 0
+    assert cy.brightness() == 1.0
+
+
+def test_cycler_enters_fade_after_cycle_seconds():
+    cy = dashboard.Cycler(total=3, cycle_seconds=4, fade_frames=2)
+    cy.last_cycle_time = 100.0
+    cy.update(now=105.0)            # 5s elapsed > 4s -> start fade
+    assert cy.fade_progress is not None
+
+
+def test_cycler_advances_through_fade():
+    cy = dashboard.Cycler(total=3, cycle_seconds=4, fade_frames=2)
+    cy.last_cycle_time = 100.0
+    cy.update(now=105.0)           # start fade
+    for _ in range(10):            # pump frames to finish the fade
+        cy.update(now=105.0)
+    assert cy.current == 1
+
+
+def test_cycler_brightness_dips_at_midpoint():
+    cy = dashboard.Cycler(total=2, cycle_seconds=1, fade_frames=10)
+    cy.fade_progress = 0.5
+    assert cy.brightness() == pytest.approx(0.0)
+    cy.fade_progress = 0.0
+    assert cy.brightness() == pytest.approx(1.0)
+
+
+def test_format_countdown_hours():
+    from datetime import datetime, timezone, timedelta
+    future = (datetime.now(timezone.utc) + timedelta(hours=2, minutes=30)).isoformat()
+    assert dashboard.format_countdown(future).endswith("m")
+
+
+def test_tile_value_alternates_to_countdown():
+    from datetime import datetime, timezone, timedelta
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    state = {"subscription": {"session_pct": 45, "session_reset_utc": future}}
+    m = registry.Metric("SES", "quota", "subscription.session_pct", layout.COLOR_SESSION,
+                        reset_key="subscription.session_reset_utc")
+    # phase 0..5 shows the percentage, 5..7 shows the countdown
+    assert dashboard.tile_value(m, state, now=0, show_countdown=True) == "45%"
+    assert dashboard.tile_value(m, state, now=6, show_countdown=True) != "45%"
+
+
+def test_tile_value_no_countdown_when_disabled():
+    from datetime import datetime, timezone, timedelta
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    state = {"subscription": {"session_pct": 45, "session_reset_utc": future}}
+    m = registry.Metric("SES", "quota", "subscription.session_pct", layout.COLOR_SESSION,
+                        reset_key="subscription.session_reset_utc")
+    assert dashboard.tile_value(m, state, now=6, show_countdown=False) == "45%"

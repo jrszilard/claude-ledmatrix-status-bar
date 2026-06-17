@@ -1,6 +1,84 @@
 import time
+from datetime import datetime, timezone
 
 from src import layout, registry
+
+
+COUNTDOWN_PHASE_SECONDS = 7   # ~5s value, then ~2s countdown
+
+
+class Cycler:
+    """Advance through `total` items on a timer, with a fade across each swap.
+
+    Ported from the original DisplayCycler. update(now) is frame-driven; pass an
+    explicit `now` in tests for determinism.
+    """
+
+    def __init__(self, total, cycle_seconds=4, fade_frames=15):
+        self.total = max(1, total)
+        self.cycle_seconds = cycle_seconds
+        self.fade_frames = fade_frames
+        self.current = 0
+        self.last_cycle_time = time.time()
+        self.fade_progress = None
+        self._fade_frame = 0
+        self._pre = 0
+
+    def update(self, now=None):
+        now = time.time() if now is None else now
+        if self.total <= 1:
+            return
+        if self.fade_progress is not None:
+            self._fade_frame += 1
+            self.fade_progress = self._fade_frame / (self.fade_frames * 2)
+            if self.fade_progress >= 0.5 and self.current == self._pre:
+                self.current = (self.current + 1) % self.total
+            if self.fade_progress >= 1.0:
+                self.fade_progress = None
+                self._fade_frame = 0
+                self.last_cycle_time = now
+        elif now - self.last_cycle_time >= self.cycle_seconds:
+            self.fade_progress = 0.0
+            self._fade_frame = 0
+            self._pre = self.current
+
+    def brightness(self) -> float:
+        if self.fade_progress is None:
+            return 1.0
+        p = self.fade_progress
+        return 1.0 - (p * 2) if p <= 0.5 else (p - 0.5) * 2
+
+
+def format_countdown(reset_utc) -> str:
+    """UTC ISO timestamp -> compact countdown like '2h30m' or '3d5h'. '' if past/invalid."""
+    if not reset_utc:
+        return ""
+    try:
+        reset_dt = datetime.fromisoformat(reset_utc)
+        delta = reset_dt - datetime.now(timezone.utc)
+        total = int(delta.total_seconds())
+        if total <= 0:
+            return ""
+        days, hours, minutes = total // 86400, (total % 86400) // 3600, (total % 3600) // 60
+        if days > 0:
+            return f"{days}d{hours}h"
+        if hours > 0:
+            return f"{hours}h{minutes:02d}m"
+        return f"{minutes}m"
+    except (ValueError, TypeError):
+        return ""
+
+
+def tile_value(metric, state, now=None, show_countdown=True) -> str:
+    """The value string for a tile, alternating quota%/countdown over time."""
+    now = time.time() if now is None else now
+    base = format_value(metric, state)
+    if not show_countdown or metric.shape != "quota" or not metric.reset_key:
+        return base
+    cd = format_countdown(registry.resolve(metric.reset_key, state))
+    if not cd:
+        return base
+    return cd if (now % COUNTDOWN_PHASE_SECONDS) >= 5 else base
 
 
 def format_value(metric, state) -> str:
@@ -34,7 +112,8 @@ def _draw_bar(canvas, x, y, width, height, percentage, fg_color, bg_color):
             canvas.SetPixel(x + col, y + row, *color)
 
 
-def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=None):
+def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=None,
+              show_countdown=True):
     """Draw one metric in a 32x16 tile at the given vertical offset.
 
     Justified layout: label hugs the left, value hugs the right, bar (if any) below.
@@ -42,7 +121,7 @@ def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=No
     color = layout.scale_color(metric.color, brightness)
     c = gfx.Color(*color)
 
-    value = format_value(metric, state)
+    value = tile_value(metric, state, now=now, show_countdown=show_countdown)
     text_y = y_offset + layout.TILE_TEXT_Y
 
     # Label left, value right-aligned.
