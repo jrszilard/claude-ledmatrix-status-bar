@@ -1,10 +1,5 @@
 import math
 
-# Display dimensions
-PANEL_WIDTH = 32
-TOTAL_WIDTH = 96  # 3 panels x 32
-TOTAL_HEIGHT = 16
-
 # Colors (R, G, B)
 COLOR_SESSION = (255, 107, 107)
 COLOR_WEEK_ALL = (255, 217, 61)
@@ -15,21 +10,8 @@ COLOR_GRAY = (128, 128, 128)
 COLOR_BAR_BG = (51, 51, 51)
 COLOR_DIVIDER = (68, 68, 68)
 
-# Text positions (5x7 font)
+# Text layout (5x7 font)
 CHAR_WIDTH = 5   # pixels per character
-TEXT_Y = 8       # baseline for top text row
-BAR_BORDER_X = 0     # border left edge (full width)
-BAR_BORDER_Y = 10    # border top edge
-BAR_BORDER_W = 96    # border outer width
-BAR_BORDER_H = 5     # border outer height (1 + 3 + 1)
-BAR_X = 1            # bar fill left edge (inside border)
-BAR_Y = 11           # bar fill top edge (inside border)
-BAR_WIDTH = 94       # bar fill width
-BAR_HEIGHT = 3       # bar fill thickness
-
-# Ticker (bottom area when using split layout)
-TICKER_PROJECT_Y_NAME = 7
-TICKER_PROJECT_Y_DETAIL = 14
 
 
 def format_tokens(tokens: int) -> str:
@@ -51,16 +33,6 @@ def format_dollars(amount: float) -> str:
 def compute_bar_width(percentage, max_width: int) -> int:
     """Compute pixel width of a progress bar given percentage and max width."""
     return int(max_width * percentage / 100)
-
-
-def ticker_pages(projects: list, per_page: int) -> list:
-    """Split project list into pages of per_page items each."""
-    if not projects:
-        return []
-    return [
-        projects[i : i + per_page]
-        for i in range(0, len(projects), per_page)
-    ]
 
 
 def scale_color(color: tuple, brightness: float) -> tuple:
@@ -94,3 +66,8 @@ def configure(rows: int, cols: int, parallel: int) -> None:
     TILE_HEIGHT = rows
     NUM_TILES = parallel
     TILE_Y_OFFSETS = [i * rows for i in range(parallel)]
+
+
+# Canonical full-canvas dimensions (derived from tile geometry).
+TOTAL_WIDTH = TILE_WIDTH
+TOTAL_HEIGHT = TILE_HEIGHT * NUM_TILES
