@@ -195,3 +195,31 @@ def draw_page(canvas, gfx, fonts, provider, state, page_cycler, now=None,
         draw_tile(canvas, gfx, fonts["main"], offsets[idx], cur, state,
                   brightness=page_cycler.brightness(), now=now,
                   show_countdown=show_countdown)
+
+
+class Dashboard:
+    """Top-level: cycles enabled provider pages and draws the current one."""
+
+    def __init__(self, cycle_seconds=4, fade_frames=15, page_dwell_seconds=8,
+                 show_countdown=True):
+        self.show_countdown = show_countdown
+        self.providers = registry.enabled_providers()
+        self.provider_cycler = Cycler(len(self.providers), page_dwell_seconds, fade_frames)
+        self.page_cyclers = {}
+        for p in self.providers:
+            n = len(p.page.rotating) if isinstance(p.page, registry.TilesPage) else 1
+            self.page_cyclers[p.id] = Cycler(n, cycle_seconds, fade_frames)
+
+    def update(self, now=None):
+        now = time.time() if now is None else now
+        self.provider_cycler.update(now)
+        for cy in self.page_cyclers.values():
+            cy.update(now)
+
+    def draw(self, canvas, gfx, fonts, state, now=None):
+        if not self.providers:
+            return
+        now = time.time() if now is None else now
+        provider = self.providers[self.provider_cycler.current % len(self.providers)]
+        draw_page(canvas, gfx, fonts, provider, state, self.page_cyclers[provider.id],
+                  now=now, show_countdown=self.show_countdown)

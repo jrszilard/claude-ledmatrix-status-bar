@@ -193,3 +193,29 @@ def test_draw_page_hero_draws_provider_label_and_spend(gfx, canvas):
     drawn = texts(gfx)
     assert "OPENCODE" in drawn
     assert "$18.40" in drawn
+
+
+def test_dashboard_uses_only_enabled_providers():
+    dash = dashboard.Dashboard()
+    assert [p.id for p in dash.providers] == ["anthropic"]
+
+
+def test_dashboard_single_provider_does_not_rotate():
+    dash = dashboard.Dashboard(page_dwell_seconds=4)
+    dash.update(now=100)
+    dash.update(now=200)
+    assert dash.provider_cycler.current == 0   # only one provider -> no advance
+
+
+def test_dashboard_draw_renders_claude_page(gfx, canvas):
+    dash = dashboard.Dashboard()
+    dash.draw(canvas, gfx, {"main": MagicMock(), "small": MagicMock()}, STATE, now=0)
+    drawn = texts(gfx)
+    assert "SES" in drawn and "WK" in drawn
+
+
+def test_dashboard_draw_noop_when_no_providers(gfx, canvas, monkeypatch):
+    monkeypatch.setattr(registry, "enabled_providers", lambda: [])
+    dash = dashboard.Dashboard()
+    dash.draw(canvas, gfx, {"main": MagicMock(), "small": MagicMock()}, STATE, now=0)
+    assert not gfx.DrawText.called
