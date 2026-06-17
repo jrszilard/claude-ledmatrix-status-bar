@@ -1,13 +1,15 @@
 display:
-  panels: 3
-  rows: 32
-  cols_per_panel: 64
-  gpio_mapping: "regular"
+  rows: 16              # one panel's pixel height
+  cols_per_panel: 32    # one panel's pixel width
+  chain_length: 1       # panels daisy-chained per port (triple bonnet: 1)
+  parallel: 3           # parallel chains = number of stacked panels
+  gpio_mapping: "adafruit-hat-pwm"
   gpio_slowdown: 2
   brightness: 60
-  ticker_projects_per_page: 2
-  ticker_cycle_seconds: 4
-  ticker_fade_frames: 15
+  ticker_cycle_seconds: 4      # inner page sub-rotation seconds
+  ticker_fade_frames: 15       # fade frames across a swap
+  page_dwell_seconds: 8        # seconds each provider page stays on screen
+  show_countdown: true         # alternate quota tiles between % and reset countdown
 
 polling:
   api_interval_seconds: 300

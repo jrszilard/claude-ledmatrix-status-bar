@@ -71,49 +71,54 @@ def run_dry_mode(config, state, lock):
 def run_led_mode(config, state, lock):
     """Main render loop driving the LED matrix."""
     from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-    from src.renderer import DisplayCycler, draw_screen
+    from src.dashboard import Dashboard
+    from src.config import resolve_geometry
+
+    disp = config["display"]
+    geo = resolve_geometry(disp)
+    layout.configure(rows=geo["rows"], cols=geo["cols"], parallel=geo["parallel"])
 
     options = RGBMatrixOptions()
-    options.rows = config["display"]["rows"]
-    options.cols = config["display"]["cols_per_panel"]
-    options.chain_length = config["display"]["panels"]
-    options.parallel = 1
-    options.hardware_mapping = config["display"]["gpio_mapping"]
-    options.gpio_slowdown = config["display"]["gpio_slowdown"]
-    options.brightness = config["display"]["brightness"]
-    options.pwm_bits = config["display"].get("pwm_bits", 11)
-    options.pwm_lsb_nanoseconds = config["display"].get("pwm_lsb_nanoseconds", 130)
-    options.scan_mode = config["display"].get("scan_mode", 0)
-    options.limit_refresh_rate_hz = config["display"].get("limit_refresh_hz", 0)
-    options.disable_hardware_pulsing = config["display"].get("no_hardware_pulse", False)
+    options.rows = geo["rows"]
+    options.cols = geo["cols"]
+    options.chain_length = geo["chain_length"]
+    options.parallel = geo["parallel"]
+    options.hardware_mapping = disp["gpio_mapping"]
+    options.gpio_slowdown = disp["gpio_slowdown"]
+    options.brightness = disp["brightness"]
+    options.pwm_bits = disp.get("pwm_bits", 11)
+    options.pwm_lsb_nanoseconds = disp.get("pwm_lsb_nanoseconds", 130)
+    options.scan_mode = disp.get("scan_mode", 0)
+    options.limit_refresh_rate_hz = disp.get("limit_refresh_hz", 0)
+    options.disable_hardware_pulsing = disp.get("no_hardware_pulse", False)
     options.drop_privileges = False
 
     matrix = RGBMatrix(options=options)
     canvas = matrix.CreateFrameCanvas()
 
-    font = graphics.Font()
-    font.LoadFont("fonts/5x7.bdf")
+    font_main = graphics.Font()
+    font_main.LoadFont("fonts/5x7.bdf")
+    font_small = graphics.Font()
+    font_small.LoadFont("fonts/4x6.bdf")
+    fonts = {"main": font_main, "small": font_small}
 
-    cycler = DisplayCycler(
-        cycle_seconds=config["display"]["ticker_cycle_seconds"],
-        fade_frames=config["display"]["ticker_fade_frames"],
+    dash = Dashboard(
+        cycle_seconds=disp.get("ticker_cycle_seconds", 4),
+        fade_frames=disp.get("ticker_fade_frames", 15),
+        page_dwell_seconds=disp.get("page_dwell_seconds", 8),
+        show_countdown=disp.get("show_countdown", True),
     )
 
     logger.info("LED matrix initialized. Starting render loop.")
-
     try:
         while True:
             canvas.Clear()
-
             with lock:
                 snapshot = copy.deepcopy(state)
-
-            cycler.update()
-            brightness = cycler.get_brightness()
-            draw_screen(canvas, graphics, font, cycler.current_screen, snapshot, brightness)
-
+            now = time.time()
+            dash.update(now)
+            dash.draw(canvas, graphics, fonts, snapshot, now)
             canvas = matrix.SwapOnVSync(canvas)
-
     except KeyboardInterrupt:
         logger.info("Shutting down LED matrix.")
         matrix.Clear()
