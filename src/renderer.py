@@ -1,9 +1,26 @@
 import time
 import logging
+from datetime import datetime, timezone
 
 from src import layout
 
 logger = logging.getLogger(__name__)
+
+
+def _draw_bar_border(canvas, border_color):
+    """Draw a 1-pixel border around the progress bar area."""
+    bx = layout.BAR_BORDER_X
+    by = layout.BAR_BORDER_Y
+    bw = layout.BAR_BORDER_W
+    bh = layout.BAR_BORDER_H
+    # Top and bottom edges
+    for col in range(bw):
+        canvas.SetPixel(bx + col, by, *border_color)
+        canvas.SetPixel(bx + col, by + bh - 1, *border_color)
+    # Left and right edges
+    for row in range(bh):
+        canvas.SetPixel(bx, by + row, *border_color)
+        canvas.SetPixel(bx + bw - 1, by + row, *border_color)
 
 
 def _draw_bar(canvas, x, y, width, height, percentage, fg_color, bg_color):
@@ -61,20 +78,50 @@ class DisplayCycler:
         return (p - 0.5) * 2
 
 
-def draw_metric(canvas, graphics, font, label, value, pct, color, brightness=1.0):
+def format_countdown(reset_utc: str | None) -> str:
+    """Convert a UTC ISO timestamp to a compact countdown string like '2h30m' or '3d5h'."""
+    if not reset_utc:
+        return ""
+    try:
+        reset_dt = datetime.fromisoformat(reset_utc)
+        now = datetime.now(timezone.utc)
+        delta = reset_dt - now
+        total_seconds = int(delta.total_seconds())
+        if total_seconds <= 0:
+            return ""
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        minutes = (total_seconds % 3600) // 60
+        if days > 0:
+            return f"{days}d{hours}h"
+        if hours > 0:
+            return f"{hours}h{minutes:02d}m"
+        return f"{minutes}m"
+    except Exception:
+        return ""
+
+
+def draw_metric(canvas, graphics, font, label, value, pct, color,
+                brightness=1.0, reset_utc=None):
     """Draw a single metric: label + value on top, progress bar on bottom."""
     scaled = layout.scale_color(color, brightness)
     bar_bg = layout.scale_color(layout.COLOR_BAR_BG, brightness)
     c = graphics.Color(*scaled)
 
-    # Top line: "LABEL VALUE"
-    text = f"{label} {value}"
+    # Top line: "LABEL VALUE" with optional countdown
+    countdown = format_countdown(reset_utc)
+    if countdown:
+        text = f"{label} {value} {countdown}"
+    else:
+        text = f"{label} {value}"
     # Center the text
     text_width = len(text) * layout.CHAR_WIDTH
     x = max(0, (layout.TOTAL_WIDTH - text_width) // 2)
     graphics.DrawText(canvas, font, x, layout.TEXT_Y, c, text)
 
-    # Bottom: progress bar
+    # Bottom: progress bar with border in dimmed metric color
+    border_color = layout.scale_color(color, brightness * 0.5)
+    _draw_bar_border(canvas, border_color)
     _draw_bar(
         canvas,
         layout.BAR_X, layout.BAR_Y,
@@ -92,17 +139,20 @@ def draw_screen(canvas, graphics, font, screen_idx, state, brightness=1.0):
         draw_metric(canvas, graphics, font,
                     "SES", f"{sub.get('session_pct', 0)}%",
                     sub.get("session_pct", 0),
-                    layout.COLOR_SESSION, brightness)
+                    layout.COLOR_SESSION, brightness,
+                    reset_utc=sub.get("session_reset_utc"))
     elif screen_idx == 1:
         draw_metric(canvas, graphics, font,
                     "WK-ALL", f"{sub.get('week_all_pct', 0)}%",
                     sub.get("week_all_pct", 0),
-                    layout.COLOR_WEEK_ALL, brightness)
+                    layout.COLOR_WEEK_ALL, brightness,
+                    reset_utc=sub.get("week_all_reset_utc"))
     elif screen_idx == 2:
         draw_metric(canvas, graphics, font,
                     "WK-SNT", f"{sub.get('week_sonnet_pct', 0)}%",
                     sub.get("week_sonnet_pct", 0),
-                    layout.COLOR_WEEK_SONNET, brightness)
+                    layout.COLOR_WEEK_SONNET, brightness,
+                    reset_utc=sub.get("week_sonnet_reset_utc"))
     elif screen_idx == 3:
         spent = sub.get("extra_spent", 0)
         limit = sub.get("extra_limit", 1)
@@ -116,7 +166,7 @@ def draw_screen(canvas, graphics, font, screen_idx, state, brightness=1.0):
         tokens = api.get("total_tokens", 0)
         draw_metric(canvas, graphics, font,
                     "API", f"{layout.format_dollars(spend)} {layout.format_tokens(tokens)}",
-                    0,  # no bar for API
+                    0,
                     layout.COLOR_API, brightness)
 
 

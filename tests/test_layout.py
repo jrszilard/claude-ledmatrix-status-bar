@@ -1,9 +1,15 @@
 from src.layout import (
     TOTAL_WIDTH,
     TOTAL_HEIGHT,
-    DASHBOARD_BOTTOM,
-    TICKER_TOP,
     PANEL_WIDTH,
+    BAR_X,
+    BAR_Y,
+    BAR_WIDTH,
+    BAR_HEIGHT,
+    BAR_BORDER_X,
+    BAR_BORDER_Y,
+    BAR_BORDER_W,
+    BAR_BORDER_H,
     COLOR_SESSION,
     COLOR_WEEK_ALL,
     COLOR_WEEK_SONNET,
@@ -20,14 +26,17 @@ from src.layout import (
 
 
 def test_display_dimensions():
-    assert TOTAL_WIDTH == 192
-    assert TOTAL_HEIGHT == 32
-    assert PANEL_WIDTH == 64
+    assert TOTAL_WIDTH == 96
+    assert TOTAL_HEIGHT == 16
+    assert PANEL_WIDTH == 32
 
 
-def test_dashboard_ticker_boundary():
-    assert DASHBOARD_BOTTOM == 22
-    assert TICKER_TOP == 22
+def test_bar_border_contains_bar():
+    """Border should surround the bar with 1px on each side."""
+    assert BAR_BORDER_X == BAR_X - 1
+    assert BAR_BORDER_Y == BAR_Y - 1
+    assert BAR_BORDER_W == BAR_WIDTH + 2
+    assert BAR_BORDER_H == BAR_HEIGHT + 2
 
 
 def test_colors_are_rgb_tuples():

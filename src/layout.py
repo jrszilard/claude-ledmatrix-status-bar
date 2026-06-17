@@ -18,10 +18,14 @@ COLOR_DIVIDER = (68, 68, 68)
 # Text positions (5x7 font)
 CHAR_WIDTH = 5   # pixels per character
 TEXT_Y = 8       # baseline for top text row
-BAR_Y = 11       # top of progress bar
-BAR_HEIGHT = 3   # bar thickness
-BAR_X = 2        # left padding
-BAR_WIDTH = 92   # nearly full width
+BAR_BORDER_X = 0     # border left edge (full width)
+BAR_BORDER_Y = 10    # border top edge
+BAR_BORDER_W = 96    # border outer width
+BAR_BORDER_H = 5     # border outer height (1 + 3 + 1)
+BAR_X = 1            # bar fill left edge (inside border)
+BAR_Y = 11           # bar fill top edge (inside border)
+BAR_WIDTH = 94       # bar fill width
+BAR_HEIGHT = 3       # bar fill thickness
 
 # Ticker (bottom area when using split layout)
 TICKER_PROJECT_Y_NAME = 7

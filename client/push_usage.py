@@ -23,12 +23,19 @@ Environment variables:
 import argparse
 import json
 import logging
+import os
 import re
 import subprocess
 import sys
 import time
+from datetime import datetime, timedelta
 
 import requests
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,10 +46,13 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SUBSCRIPTION = {
     "session_pct": 0,
     "session_reset": "--",
+    "session_reset_utc": None,
     "week_all_pct": 0,
     "week_all_reset": "--",
+    "week_all_reset_utc": None,
     "week_sonnet_pct": 0,
     "week_sonnet_reset": "--",
+    "week_sonnet_reset_utc": None,
     "extra_spent": 0.0,
     "extra_limit": 0.0,
 }
@@ -53,10 +63,72 @@ def strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
 
 
+def parse_reset_to_utc(reset_str: str, tz_name: str = "America/New_York") -> str | None:
+    """Convert a reset time string like '1pm' or 'Apr 10, 10am' to UTC ISO format.
+
+    Formats seen from /usage:
+      - "1pm"           → today at 1:00 PM in the given timezone
+      - "Apr 10, 10am"  → April 10 at 10:00 AM
+      - "May 1"         → May 1 at midnight
+    """
+    try:
+        tz = ZoneInfo(tz_name)
+        now = datetime.now(tz)
+
+        # Try "Apr 10, 10am" format
+        m = re.match(r"([A-Z][a-z]+)\s+(\d+),?\s+(\d+)(am|pm)", reset_str)
+        if m:
+            month_str, day, hour, ampm = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
+            if ampm == "pm" and hour != 12:
+                hour += 12
+            elif ampm == "am" and hour == 12:
+                hour = 0
+            dt = datetime.strptime(month_str, "%b").replace(
+                year=now.year, day=day, hour=hour, minute=0, second=0,
+                tzinfo=tz,
+            )
+            if dt < now - timedelta(days=1):
+                dt = dt.replace(year=now.year + 1)
+            return dt.astimezone(ZoneInfo("UTC")).isoformat()
+
+        # Try "1pm" / "10am" format (today)
+        m = re.match(r"(\d+)(am|pm)$", reset_str)
+        if m:
+            hour, ampm = int(m.group(1)), m.group(2)
+            if ampm == "pm" and hour != 12:
+                hour += 12
+            elif ampm == "am" and hour == 12:
+                hour = 0
+            dt = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if dt < now:
+                dt += timedelta(days=1)
+            return dt.astimezone(ZoneInfo("UTC")).isoformat()
+
+        # Try "May 1" format (date only, midnight)
+        m = re.match(r"([A-Z][a-z]+)\s+(\d+)$", reset_str)
+        if m:
+            month_str, day = m.group(1), int(m.group(2))
+            dt = datetime.strptime(month_str, "%b").replace(
+                year=now.year, day=day, hour=0, minute=0, second=0,
+                tzinfo=tz,
+            )
+            if dt < now - timedelta(days=1):
+                dt = dt.replace(year=now.year + 1)
+            return dt.astimezone(ZoneInfo("UTC")).isoformat()
+
+    except Exception as e:
+        logger.warning(f"Could not parse reset time '{reset_str}': {e}")
+    return None
+
+
 def parse_usage_output(raw_text: str) -> dict:
     """Parse Claude Code /usage TUI output into a structured dict."""
     text = strip_ansi(raw_text)
     result = dict(_DEFAULT_SUBSCRIPTION)
+
+    # Detect timezone from output (e.g. "America/New_York")
+    tz_match = re.search(r"\(([A-Za-z]+/[A-Za-z_]+)\)", text)
+    tz_name = tz_match.group(1) if tz_match else "America/New_York"
 
     m = re.search(r"Current session.*?(\d+)%\s+used", text, re.DOTALL)
     if m:
@@ -65,6 +137,7 @@ def parse_usage_output(raw_text: str) -> dict:
     m = re.search(r"Current session.*?Resets\s+(.+?)\s*\(", text, re.DOTALL)
     if m:
         result["session_reset"] = m.group(1).strip()
+        result["session_reset_utc"] = parse_reset_to_utc(result["session_reset"], tz_name)
 
     m = re.search(r"Current week \(all models\).*?(\d+)%\s+used", text, re.DOTALL)
     if m:
@@ -75,6 +148,7 @@ def parse_usage_output(raw_text: str) -> dict:
     )
     if m:
         result["week_all_reset"] = m.group(1).strip()
+        result["week_all_reset_utc"] = parse_reset_to_utc(result["week_all_reset"], tz_name)
 
     m = re.search(r"Current week \(Sonnet only\).*?(\d+)%\s+used", text, re.DOTALL)
     if m:
@@ -85,6 +159,7 @@ def parse_usage_output(raw_text: str) -> dict:
     )
     if m:
         result["week_sonnet_reset"] = m.group(1).strip()
+        result["week_sonnet_reset_utc"] = parse_reset_to_utc(result["week_sonnet_reset"], tz_name)
 
     m = re.search(r"\$(\d+\.?\d*)\s*/\s*\$(\d+\.?\d*)\s+spent", text)
     if m:
@@ -97,6 +172,9 @@ def parse_usage_output(raw_text: str) -> dict:
 def capture_usage() -> dict:
     """Spawn tmux + Claude Code, capture /usage output, parse and return."""
     session_name = f"push_usage_{int(time.time())}"
+    # Launch from a trusted project directory to avoid the workspace trust prompt
+    # that blocks Claude Code's TUI when launching from $HOME (cron default).
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     try:
         subprocess.run(
@@ -104,7 +182,8 @@ def capture_usage() -> dict:
             check=True, timeout=5,
         )
         subprocess.run(
-            ["tmux", "send-keys", "-t", session_name, "claude", "Enter"],
+            ["tmux", "send-keys", "-t", session_name,
+             f"cd {script_dir} && claude", "Enter"],
             check=True, timeout=5,
         )
 
@@ -168,8 +247,6 @@ def push_to_pi(data: dict, host: str, port: int, token: str) -> bool:
 
 
 def main():
-    import os
-
     parser = argparse.ArgumentParser(description="Push Claude Code usage to LED matrix Pi")
     parser.add_argument("--host", default=os.environ.get("PI_HOST", "localhost"),
                         help="Pi hostname or IP (default: $PI_HOST or localhost)")
