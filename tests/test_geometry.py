@@ -35,3 +35,11 @@ def test_configure_two_panels():
     layout.configure(rows=16, cols=32, parallel=2)
     assert layout.NUM_TILES == 2
     assert layout.TILE_Y_OFFSETS == [0, 16]
+
+
+def test_configure_updates_total_dimensions():
+    layout.configure(rows=16, cols=32, parallel=2)
+    assert layout.TOTAL_WIDTH == 32
+    assert layout.TOTAL_HEIGHT == 32   # 16 * 2
+    layout.configure(rows=16, cols=32, parallel=3)
+    assert layout.TOTAL_HEIGHT == 48   # 16 * 3

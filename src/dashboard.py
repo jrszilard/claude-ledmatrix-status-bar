@@ -10,8 +10,7 @@ COUNTDOWN_PHASE_SECONDS = 7   # ~5s value, then ~2s countdown
 class Cycler:
     """Advance through `total` items on a timer, with a fade across each swap.
 
-    Ported from the original DisplayCycler. update(now) is frame-driven; pass an
-    explicit `now` in tests for determinism.
+    update(now) is frame-driven; pass an explicit `now` in tests for determinism.
     """
 
     def __init__(self, total, cycle_seconds=4, fade_frames=15):
@@ -165,7 +164,7 @@ def draw_hero(canvas, gfx, fonts, provider, state, brightness=1.0):
     sub = registry.resolve(metric.sub_key, state) if metric.sub_key else None
     if sub:
         sc = gfx.Color(*layout.scale_color(layout.COLOR_GRAY, brightness))
-        sub = str(sub)
+        sub = str(sub)[:layout.TILE_WIDTH // 4]  # 4px/char in the small font; clip to tile width
         sub_x = max(0, (layout.TILE_WIDTH - len(sub) * 4) // 2)
         gfx.DrawText(canvas, fonts["small"], sub_x, mid_y + 9, sc, sub)
 

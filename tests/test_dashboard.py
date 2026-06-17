@@ -219,3 +219,15 @@ def test_dashboard_draw_noop_when_no_providers(gfx, canvas, monkeypatch):
     dash = dashboard.Dashboard()
     dash.draw(canvas, gfx, {"main": MagicMock(), "small": MagicMock()}, STATE, now=0)
     assert not gfx.DrawText.called
+
+
+def test_hero_sub_line_is_truncated(gfx, canvas):
+    state = {"opencode": {"spent_period": 18.40,
+                          "autoreload": "auto-reload @ $100.00 every hour"}}
+    cy = dashboard.Cycler(total=1)
+    dashboard.draw_page(canvas, gfx, {"main": MagicMock(), "small": MagicMock()},
+                        _opencode(), state, cy, now=0)
+    # the sub-line is the only drawn text that is neither the label nor the dollar value
+    drawn = [t for t in texts(gfx) if t not in ("OPENCODE", "$18.40")]
+    assert drawn, "expected a sub-line to be drawn"
+    assert all(len(t) <= 8 for t in drawn)

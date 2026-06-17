@@ -61,11 +61,13 @@ def configure(rows: int, cols: int, parallel: int) -> None:
     rows/cols are a single panel's dimensions; parallel is the number of
     stacked panels (parallel chains on the bonnet).
     """
-    global TILE_WIDTH, TILE_HEIGHT, NUM_TILES, TILE_Y_OFFSETS
+    global TILE_WIDTH, TILE_HEIGHT, NUM_TILES, TILE_Y_OFFSETS, TOTAL_WIDTH, TOTAL_HEIGHT
     TILE_WIDTH = cols
     TILE_HEIGHT = rows
     NUM_TILES = parallel
     TILE_Y_OFFSETS = [i * rows for i in range(parallel)]
+    TOTAL_WIDTH = TILE_WIDTH
+    TOTAL_HEIGHT = TILE_HEIGHT * NUM_TILES
 
 
 # Canonical full-canvas dimensions (derived from tile geometry).
