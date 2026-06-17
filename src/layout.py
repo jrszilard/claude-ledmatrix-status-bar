@@ -66,3 +66,31 @@ def ticker_pages(projects: list, per_page: int) -> list:
 def scale_color(color: tuple, brightness: float) -> tuple:
     """Scale an RGB color tuple by a brightness factor (0.0 to 1.0)."""
     return tuple(int(c * brightness) for c in color)
+
+
+# --- Vertical tile geometry (triple-bonnet parallel stack) -------------------
+# Three stacked 32x16 tiles -> a 32x48 framebuffer. Defaults match the current
+# hardware so tests and dry-run work without calling configure().
+TILE_WIDTH = 32
+TILE_HEIGHT = 16
+NUM_TILES = 3
+TILE_Y_OFFSETS = [0, 16, 32]
+
+# Element positions WITHIN a single tile, relative to the tile's top row.
+TILE_TEXT_Y = 8   # text baseline inside the tile
+TILE_BAR_Y = 11   # bar top inside the tile
+TILE_BAR_H = 3    # bar thickness
+TILE_BAR_X = 1    # left inset for text and bar (leaves col 0 for the accent)
+
+
+def configure(rows: int, cols: int, parallel: int) -> None:
+    """Derive tile geometry from hardware config. Call once at startup.
+
+    rows/cols are a single panel's dimensions; parallel is the number of
+    stacked panels (parallel chains on the bonnet).
+    """
+    global TILE_WIDTH, TILE_HEIGHT, NUM_TILES, TILE_Y_OFFSETS
+    TILE_WIDTH = cols
+    TILE_HEIGHT = rows
+    NUM_TILES = parallel
+    TILE_Y_OFFSETS = [i * rows for i in range(parallel)]
