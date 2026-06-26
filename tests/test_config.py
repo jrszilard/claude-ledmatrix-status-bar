@@ -3,7 +3,7 @@ import pytest
 import tempfile
 import yaml
 
-from src.config import load_config
+from src.config import load_config, resolve_geometry
 
 
 @pytest.fixture
@@ -77,3 +77,23 @@ def test_missing_required_section():
             load_config(path)
     finally:
         os.unlink(path)
+
+
+def test_resolve_geometry_explicit_parallel():
+    g = resolve_geometry({"rows": 16, "cols_per_panel": 32,
+                          "chain_length": 1, "parallel": 3})
+    assert g == {"rows": 16, "cols": 32, "chain_length": 1, "parallel": 3}
+
+
+def test_resolve_geometry_falls_back_to_legacy_panels():
+    # Old configs only had `panels` (a daisy-chain count). Treat it as parallel
+    # only if chain_length/parallel are absent.
+    g = resolve_geometry({"rows": 16, "cols_per_panel": 32, "panels": 3})
+    assert g["parallel"] == 3
+    assert g["chain_length"] == 1
+
+
+def test_resolve_geometry_defaults_single_panel():
+    g = resolve_geometry({"rows": 16, "cols_per_panel": 32})
+    assert g["chain_length"] == 1
+    assert g["parallel"] == 1

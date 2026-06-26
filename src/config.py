@@ -34,6 +34,24 @@ def _interpolate_recursive(obj):
     return _interpolate_env_vars(obj)
 
 
+def resolve_geometry(display: dict) -> dict:
+    """Resolve panel geometry from the [display] config.
+
+    Prefers explicit chain_length/parallel. Falls back to the legacy `panels`
+    key (treated as a parallel-chain count for the triple bonnet). Defaults to a
+    single panel.
+    """
+    parallel = display.get("parallel")
+    if parallel is None:
+        parallel = display.get("panels", 1)
+    return {
+        "rows": display["rows"],
+        "cols": display["cols_per_panel"],
+        "chain_length": display.get("chain_length", 1),
+        "parallel": parallel,
+    }
+
+
 def load_config(path: str) -> dict:
     """Load and validate config from a YAML file.
 

@@ -1,10 +1,5 @@
 import math
 
-# Display dimensions
-PANEL_WIDTH = 32
-TOTAL_WIDTH = 96  # 3 panels x 32
-TOTAL_HEIGHT = 16
-
 # Colors (R, G, B)
 COLOR_SESSION = (255, 107, 107)
 COLOR_WEEK_ALL = (255, 217, 61)
@@ -15,17 +10,8 @@ COLOR_GRAY = (128, 128, 128)
 COLOR_BAR_BG = (51, 51, 51)
 COLOR_DIVIDER = (68, 68, 68)
 
-# Text positions (5x7 font)
+# Text layout (5x7 font)
 CHAR_WIDTH = 5   # pixels per character
-TEXT_Y = 8       # baseline for top text row
-BAR_Y = 11       # top of progress bar
-BAR_HEIGHT = 3   # bar thickness
-BAR_X = 2        # left padding
-BAR_WIDTH = 92   # nearly full width
-
-# Ticker (bottom area when using split layout)
-TICKER_PROJECT_Y_NAME = 7
-TICKER_PROJECT_Y_DETAIL = 14
 
 
 def format_tokens(tokens: int) -> str:
@@ -49,16 +35,43 @@ def compute_bar_width(percentage, max_width: int) -> int:
     return int(max_width * percentage / 100)
 
 
-def ticker_pages(projects: list, per_page: int) -> list:
-    """Split project list into pages of per_page items each."""
-    if not projects:
-        return []
-    return [
-        projects[i : i + per_page]
-        for i in range(0, len(projects), per_page)
-    ]
-
-
 def scale_color(color: tuple, brightness: float) -> tuple:
     """Scale an RGB color tuple by a brightness factor (0.0 to 1.0)."""
     return tuple(int(c * brightness) for c in color)
+
+
+# --- Vertical tile geometry (triple-bonnet parallel stack) -------------------
+# Three stacked 32x16 tiles -> a 32x48 framebuffer. Defaults match the current
+# hardware so tests and dry-run work without calling configure().
+TILE_WIDTH = 32
+TILE_HEIGHT = 16
+NUM_TILES = 3
+TILE_Y_OFFSETS = [0, 16, 32]
+
+# Element positions WITHIN a single tile, relative to the tile's top row.
+TILE_TEXT_Y = 8       # text baseline inside the tile
+TILE_BAR_Y = 11       # bar top inside the tile
+TILE_BAR_H = 3        # bar thickness
+TILE_BAR_X = 1        # left inset for the bar (leaves col 0 for the accent)
+TILE_TEXT_X = 3       # left inset for text — a margin past the accent column
+TILE_CHAR_WIDTH = 4   # advance width of the 4x6 tile font (value right-alignment)
+
+
+def configure(rows: int, cols: int, parallel: int) -> None:
+    """Derive tile geometry from hardware config. Call once at startup.
+
+    rows/cols are a single panel's dimensions; parallel is the number of
+    stacked panels (parallel chains on the bonnet).
+    """
+    global TILE_WIDTH, TILE_HEIGHT, NUM_TILES, TILE_Y_OFFSETS, TOTAL_WIDTH, TOTAL_HEIGHT
+    TILE_WIDTH = cols
+    TILE_HEIGHT = rows
+    NUM_TILES = parallel
+    TILE_Y_OFFSETS = [i * rows for i in range(parallel)]
+    TOTAL_WIDTH = TILE_WIDTH
+    TOTAL_HEIGHT = TILE_HEIGHT * NUM_TILES
+
+
+# Canonical full-canvas dimensions (derived from tile geometry).
+TOTAL_WIDTH = TILE_WIDTH
+TOTAL_HEIGHT = TILE_HEIGHT * NUM_TILES

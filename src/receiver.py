@@ -58,10 +58,13 @@ def _make_handler(state, lock, token):
                 state["subscription"] = {
                     "session_pct": int(data["session_pct"]),
                     "session_reset": str(data["session_reset"]),
+                    "session_reset_utc": data.get("session_reset_utc"),
                     "week_all_pct": int(data["week_all_pct"]),
                     "week_all_reset": str(data["week_all_reset"]),
+                    "week_all_reset_utc": data.get("week_all_reset_utc"),
                     "week_sonnet_pct": int(data["week_sonnet_pct"]),
                     "week_sonnet_reset": str(data["week_sonnet_reset"]),
+                    "week_sonnet_reset_utc": data.get("week_sonnet_reset_utc"),
                     "extra_spent": float(data["extra_spent"]),
                     "extra_limit": float(data["extra_limit"]),
                 }

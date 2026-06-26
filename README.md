@@ -90,9 +90,11 @@ cd ~/claude-ledmatrix-status-bar
 source venv/bin/activate
 pip install ~/rpi-rgb-led-matrix
 
-# Link fonts
+# Link fonts (includes 5x7.bdf for metric values and 4x6.bdf for provider labels)
 ln -sfn ~/rpi-rgb-led-matrix/fonts ~/claude-ledmatrix-status-bar/fonts
 ```
+
+The dashboard uses `fonts/5x7.bdf` for metric values and `fonts/4x6.bdf` for provider labels — both are included in the symlinked `rpi-rgb-led-matrix/fonts/` directory.
 
 ### 5. Configure
 
