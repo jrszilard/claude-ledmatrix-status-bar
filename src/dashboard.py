@@ -59,10 +59,11 @@ def format_countdown(reset_utc) -> str:
         if total <= 0:
             return ""
         days, hours, minutes = total // 86400, (total % 86400) // 3600, (total % 3600) // 60
+        # Shares a 32px tile with the label -> largest unit only, <= 3 chars.
         if days > 0:
-            return f"{days}d{hours}h"
+            return f"{days}d"
         if hours > 0:
-            return f"{hours}h{minutes:02d}m"
+            return f"{hours}h"
         return f"{minutes}m"
     except (ValueError, TypeError):
         return ""
@@ -84,7 +85,8 @@ def format_value(metric, state) -> str:
     """Short, tile-width-friendly value string for a metric."""
     raw = registry.resolve(metric.key, state)
     if metric.shape == "quota":
-        return f"{int(raw or 0)}%"
+        pct = int(raw or 0)
+        return "100" if pct >= 100 else f"{pct}%"  # "100%" would overflow the tile
     if metric.shape == "capped":
         return f"${float(raw or 0):.0f}"
     if metric.shape in ("spend", "balance"):
@@ -123,9 +125,9 @@ def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=No
     value = tile_value(metric, state, now=now, show_countdown=show_countdown)
     text_y = y_offset + layout.TILE_TEXT_Y
 
-    # Label left, value right-aligned.
-    gfx.DrawText(canvas, font, layout.TILE_BAR_X, text_y, c, metric.label)
-    value_x = max(layout.TILE_BAR_X, layout.TILE_WIDTH - len(value) * layout.CHAR_WIDTH)
+    # Label left (past the accent margin), value right-aligned.
+    gfx.DrawText(canvas, font, layout.TILE_TEXT_X, text_y, c, metric.label)
+    value_x = max(layout.TILE_TEXT_X, layout.TILE_WIDTH - len(value) * layout.TILE_CHAR_WIDTH)
     gfx.DrawText(canvas, font, value_x, text_y, c, value)
 
     pct = metric_pct(metric, state)
@@ -185,13 +187,13 @@ def draw_page(canvas, gfx, fonts, provider, state, page_cycler, now=None,
     for metric in page.fixed:
         if idx >= len(offsets):
             break
-        draw_tile(canvas, gfx, fonts["main"], offsets[idx], metric, state,
+        draw_tile(canvas, gfx, fonts["small"], offsets[idx], metric, state,
                   brightness=1.0, now=now, show_countdown=show_countdown)
         idx += 1
 
     if page.rotating and idx < len(offsets):
         cur = page.rotating[page_cycler.current % len(page.rotating)]
-        draw_tile(canvas, gfx, fonts["main"], offsets[idx], cur, state,
+        draw_tile(canvas, gfx, fonts["small"], offsets[idx], cur, state,
                   brightness=page_cycler.brightness(), now=now,
                   show_countdown=show_countdown)
 

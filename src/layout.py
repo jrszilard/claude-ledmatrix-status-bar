@@ -49,10 +49,12 @@ NUM_TILES = 3
 TILE_Y_OFFSETS = [0, 16, 32]
 
 # Element positions WITHIN a single tile, relative to the tile's top row.
-TILE_TEXT_Y = 8   # text baseline inside the tile
-TILE_BAR_Y = 11   # bar top inside the tile
-TILE_BAR_H = 3    # bar thickness
-TILE_BAR_X = 1    # left inset for text and bar (leaves col 0 for the accent)
+TILE_TEXT_Y = 8       # text baseline inside the tile
+TILE_BAR_Y = 11       # bar top inside the tile
+TILE_BAR_H = 3        # bar thickness
+TILE_BAR_X = 1        # left inset for the bar (leaves col 0 for the accent)
+TILE_TEXT_X = 3       # left inset for text — a margin past the accent column
+TILE_CHAR_WIDTH = 4   # advance width of the 4x6 tile font (value right-alignment)
 
 
 def configure(rows: int, cols: int, parallel: int) -> None:

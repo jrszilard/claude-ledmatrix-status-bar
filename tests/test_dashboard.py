@@ -52,6 +52,16 @@ def test_format_value_spend():
     assert dashboard.format_value(API, STATE) == "$4.20"
 
 
+def test_format_value_quota_clamps_100_to_three_chars():
+    # "100%" is 4 chars and overflows a 32px tile -> drop the % at 100.
+    m = registry.Metric("WK", "quota", "subscription.week_all_pct", layout.COLOR_WEEK_ALL)
+    state = {"subscription": {"week_all_pct": 100}}
+    assert dashboard.format_value(m, state) == "100"
+    # still shows % below 100
+    state["subscription"]["week_all_pct"] = 99
+    assert dashboard.format_value(m, state) == "99%"
+
+
 def test_metric_pct_quota_is_the_percentage():
     assert dashboard.metric_pct(SES, STATE) == 45.0
 
@@ -72,9 +82,9 @@ def test_draw_tile_draws_label_and_value(gfx, canvas):
 
 def test_draw_tile_value_is_right_aligned(gfx, canvas):
     dashboard.draw_tile(canvas, gfx, MagicMock(), 0, SES, STATE, now=0)
-    # value "45%" is 3 chars * CHAR_WIDTH(5) = 15px -> x = 32 - 15 = 17
+    # value "45%" is 3 chars * TILE_CHAR_WIDTH(4) = 12px -> x = 32 - 12 = 20
     value_call = next(c for c in gfx.DrawText.call_args_list if c.args[5] == "45%")
-    assert value_call.args[2] == 17
+    assert value_call.args[2] == 20
 
 
 def test_draw_tile_quota_draws_bar(gfx, canvas):
@@ -126,10 +136,19 @@ def test_cycler_brightness_dips_at_midpoint():
     assert cy.brightness() == pytest.approx(1.0)
 
 
-def test_format_countdown_hours():
+def test_format_countdown_caps_at_three_chars():
+    # Countdown shares a 32px tile with the label, so it must stay <= 3 chars
+    # (largest unit only): "3d", "2h", "45m" -- never "2h30m".
     from datetime import datetime, timezone, timedelta
-    future = (datetime.now(timezone.utc) + timedelta(hours=2, minutes=30)).isoformat()
-    assert dashboard.format_countdown(future).endswith("m")
+    now = datetime.now(timezone.utc)
+    for d in (timedelta(days=3, hours=5), timedelta(hours=2, minutes=30),
+              timedelta(minutes=45), timedelta(hours=12)):
+        cd = dashboard.format_countdown((now + d).isoformat())
+        assert len(cd) <= 3, f"{cd!r} exceeds 3 chars"
+    assert dashboard.format_countdown(
+        (now + timedelta(hours=2, minutes=30)).isoformat()) == "2h"
+    assert dashboard.format_countdown(
+        (now + timedelta(days=3, hours=5)).isoformat()) == "3d"
 
 
 def test_tile_value_alternates_to_countdown():
