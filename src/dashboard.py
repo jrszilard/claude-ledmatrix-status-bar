@@ -89,8 +89,12 @@ def format_value(metric, state) -> str:
         return "100" if pct >= 100 else f"{pct}%"  # "100%" would overflow the tile
     if metric.shape == "capped":
         return f"${float(raw or 0):.0f}"
-    if metric.shape in ("spend", "balance"):
-        return layout.format_dollars(float(raw or 0))
+    if metric.shape == "spend":
+        # Shares a 32px tile with the label -> no cents, abbreviate thousands.
+        amt = float(raw or 0)
+        return f"${amt / 1000:.0f}K" if amt >= 1000 else f"${amt:.0f}"
+    if metric.shape == "balance":
+        return layout.format_dollars(float(raw or 0))  # hero page, full width
     return ""
 
 
@@ -125,9 +129,9 @@ def draw_tile(canvas, gfx, font, y_offset, metric, state, brightness=1.0, now=No
     value = tile_value(metric, state, now=now, show_countdown=show_countdown)
     text_y = y_offset + layout.TILE_TEXT_Y
 
-    # Label left (past the accent margin), value right-aligned.
+    # Label hugs the left, value right-aligned (both in the 5x7 main font).
     gfx.DrawText(canvas, font, layout.TILE_TEXT_X, text_y, c, metric.label)
-    value_x = max(layout.TILE_TEXT_X, layout.TILE_WIDTH - len(value) * layout.TILE_CHAR_WIDTH)
+    value_x = max(layout.TILE_TEXT_X, layout.TILE_WIDTH - len(value) * layout.CHAR_WIDTH)
     gfx.DrawText(canvas, font, value_x, text_y, c, value)
 
     pct = metric_pct(metric, state)
@@ -187,13 +191,13 @@ def draw_page(canvas, gfx, fonts, provider, state, page_cycler, now=None,
     for metric in page.fixed:
         if idx >= len(offsets):
             break
-        draw_tile(canvas, gfx, fonts["small"], offsets[idx], metric, state,
+        draw_tile(canvas, gfx, fonts["main"], offsets[idx], metric, state,
                   brightness=1.0, now=now, show_countdown=show_countdown)
         idx += 1
 
     if page.rotating and idx < len(offsets):
         cur = page.rotating[page_cycler.current % len(page.rotating)]
-        draw_tile(canvas, gfx, fonts["small"], offsets[idx], cur, state,
+        draw_tile(canvas, gfx, fonts["main"], offsets[idx], cur, state,
                   brightness=page_cycler.brightness(), now=now,
                   show_countdown=show_countdown)
 

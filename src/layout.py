@@ -53,8 +53,7 @@ TILE_TEXT_Y = 8       # text baseline inside the tile
 TILE_BAR_Y = 11       # bar top inside the tile
 TILE_BAR_H = 3        # bar thickness
 TILE_BAR_X = 1        # left inset for the bar (leaves col 0 for the accent)
-TILE_TEXT_X = 3       # left inset for text — a margin past the accent column
-TILE_CHAR_WIDTH = 4   # advance width of the 4x6 tile font (value right-alignment)
+TILE_TEXT_X = 1       # text starts right after the accent column (tight 5x7 layout)
 
 
 def configure(rows: int, cols: int, parallel: int) -> None:

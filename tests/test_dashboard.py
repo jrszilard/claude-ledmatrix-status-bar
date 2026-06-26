@@ -48,8 +48,15 @@ def test_format_value_capped_shows_spent_dollars():
     assert dashboard.format_value(EXT, STATE) == "$12"
 
 
-def test_format_value_spend():
-    assert dashboard.format_value(API, STATE) == "$4.20"
+def test_format_value_spend_fits_tile_no_cents():
+    # Spend shares the 32px tile with a 3-char label, so it must stay short
+    # (<=4 chars): drop cents, abbreviate thousands. "$4.20" overlapped "API".
+    assert dashboard.format_value(API, STATE) == "$4"          # 4.20 -> $4
+    big = {"api": {"total_spend": 1234.0}}
+    assert dashboard.format_value(API, big) == "$1K"           # thousands -> K
+    for amt in (0.0, 4.2, 99.9, 999.0, 1234.0, 12000.0):
+        v = dashboard.format_value(API, {"api": {"total_spend": amt}})
+        assert len(v) <= 4, f"{v!r} exceeds 4 chars"
 
 
 def test_format_value_quota_clamps_100_to_three_chars():
@@ -82,9 +89,9 @@ def test_draw_tile_draws_label_and_value(gfx, canvas):
 
 def test_draw_tile_value_is_right_aligned(gfx, canvas):
     dashboard.draw_tile(canvas, gfx, MagicMock(), 0, SES, STATE, now=0)
-    # value "45%" is 3 chars * TILE_CHAR_WIDTH(4) = 12px -> x = 32 - 12 = 20
+    # value "45%" is 3 chars * CHAR_WIDTH(5) = 15px -> x = 32 - 15 = 17
     value_call = next(c for c in gfx.DrawText.call_args_list if c.args[5] == "45%")
-    assert value_call.args[2] == 20
+    assert value_call.args[2] == 17
 
 
 def test_draw_tile_quota_draws_bar(gfx, canvas):
